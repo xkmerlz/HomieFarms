@@ -1,0 +1,500 @@
+/* HomieFarms — Pixel Art Game Styles */
+
+/* === CSS Custom Properties (tileset palette) === */
+:root {
+    --hf-brown: #5C3A1E;
+    --hf-brown-dark: #3B2410;
+    --hf-red: #8B3A3A;
+    --hf-green: #4A7A3A;
+    --hf-purple: #7B6BA5;
+    --hf-cream: #F5E6C8;
+    --hf-gold: #FFD700;
+    --hf-bg: #1a1a2e;
+}
+
+/* === Global pixel rendering === */
+* {
+    font-family: 'Press Start 2P', monospace;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: unset;
+    font-smooth: never;
+}
+
+body {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
+/* === Canvas === */
+#game-canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#game-container {
+    touch-action: none;
+}
+
+/* === Pixel border utilities === */
+.pixel-border {
+    box-shadow:
+        0 4px 0 0 var(--hf-brown-dark),
+        4px 0 0 0 var(--hf-brown-dark),
+        0 -4px 0 0 var(--hf-brown-dark),
+        -4px 0 0 0 var(--hf-brown-dark),
+        4px 4px 0 0 var(--hf-brown-dark),
+        -4px 4px 0 0 var(--hf-brown-dark),
+        4px -4px 0 0 var(--hf-brown-dark),
+        -4px -4px 0 0 var(--hf-brown-dark);
+}
+
+.pixel-border-top {
+    box-shadow:
+        0 -4px 0 0 var(--hf-brown-dark),
+        4px -4px 0 0 var(--hf-brown-dark),
+        -4px -4px 0 0 var(--hf-brown-dark);
+}
+
+/* === Panel base style === */
+.hf-panel {
+    background: rgba(0, 0, 0, 0.85);
+    color: var(--hf-cream);
+    font-size: 8px;
+    line-height: 2;
+}
+
+/* === Buttons === */
+.hf-btn {
+    background: var(--hf-brown);
+    color: var(--hf-cream);
+    padding: 8px 16px;
+    font-size: 8px;
+    cursor: pointer;
+    transition: transform 0.05s;
+    border: none;
+}
+
+.hf-btn:hover {
+    background: var(--hf-green);
+}
+
+.hf-btn:active {
+    transform: translateY(2px);
+}
+
+/* === Mobile nav button active state === */
+.mobile-nav-btn.active {
+    color: var(--hf-gold);
+}
+
+/* === Scrollbar styling for panels === */
+.hf-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.hf-panel::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.hf-panel::-webkit-scrollbar-thumb {
+    background: var(--hf-brown);
+}
+
+/* === Prevent text selection in game === */
+#game-container, #hud, #mobile-nav {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* === Context Menu === */
+.ctx-menu-inner {
+    background: rgba(0, 0, 0, 0.92);
+    border: 2px solid var(--hf-brown);
+    min-width: 140px;
+    padding: 4px 0;
+}
+
+.ctx-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 6px 12px;
+    font-size: 8px;
+    color: var(--hf-cream);
+    background: none;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: 'Press Start 2P', monospace;
+}
+
+.ctx-btn:hover {
+    background: var(--hf-brown);
+    color: var(--hf-gold);
+}
+
+/* === Toast Notification === */
+.toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    padding: 8px 16px;
+    font-size: 8px;
+    font-family: 'Press Start 2P', monospace;
+    color: var(--hf-cream);
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.toast.hidden {
+    opacity: 0;
+}
+
+.toast-success {
+    background: rgba(74, 122, 58, 0.9);
+    border: 2px solid var(--hf-green);
+}
+
+.toast-error {
+    background: rgba(139, 58, 58, 0.9);
+    border: 2px solid var(--hf-red);
+}
+
+/* === Game Panels (Inventory, Shop) === */
+.game-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 40;
+    width: 280px;
+    max-height: 400px;
+    background: rgba(0, 0, 0, 0.92);
+    border: 2px solid var(--hf-brown);
+    color: var(--hf-cream);
+    font-size: 8px;
+    user-select: none;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--hf-brown-dark);
+    font-size: 10px;
+    color: var(--hf-gold);
+}
+
+.panel-close {
+    background: none;
+    border: none;
+    color: var(--hf-red);
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Press Start 2P', monospace;
+    padding: 0 4px;
+}
+
+.panel-close:hover {
+    color: var(--hf-cream);
+}
+
+.panel-body {
+    padding: 8px;
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+/* Inventory items */
+.inv-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(92, 58, 30, 0.4);
+}
+
+.inv-item:last-child {
+    border-bottom: none;
+}
+
+.inv-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--hf-purple);
+}
+
+.inv-sell-btn, .shop-buy-btn {
+    background: var(--hf-green);
+    color: var(--hf-cream);
+    border: none;
+    padding: 3px 8px;
+    font-size: 7px;
+    cursor: pointer;
+    font-family: 'Press Start 2P', monospace;
+    margin-left: 8px;
+}
+
+.inv-sell-btn:hover, .shop-buy-btn:hover {
+    background: var(--hf-gold);
+    color: var(--hf-brown-dark);
+}
+
+/* Shop items */
+.shop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(92, 58, 30, 0.4);
+}
+
+.shop-item:last-child {
+    border-bottom: none;
+}
+
+/* Panel tabs */
+.panel-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid var(--hf-brown);
+}
+
+.panel-tab {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 7px;
+    font-family: 'Press Start 2P', monospace;
+    color: var(--hf-cream);
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    border-bottom: 2px solid transparent;
+}
+
+.panel-tab.active {
+    opacity: 1;
+    color: var(--hf-gold);
+    border-bottom-color: var(--hf-gold);
+}
+
+.panel-tab:hover {
+    opacity: 0.8;
+}
+
+/* Building info in build panel */
+.panel-build-info p {
+    font-size: 7px;
+    line-height: 2;
+}
+
+/* Shop building item */
+.shop-building {
+    padding: 8px;
+    border-bottom: 1px solid rgba(92, 58, 30, 0.4);
+}
+
+.shop-building:last-child {
+    border-bottom: none;
+}
+
+.shop-building-name {
+    color: var(--hf-gold);
+    font-size: 8px;
+    margin-bottom: 2px;
+}
+
+.shop-building-effect {
+    color: var(--hf-purple);
+    font-size: 6px;
+    margin-bottom: 4px;
+}
+
+.shop-building-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Desktop sidebar buttons */
+.sidebar-btn {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--hf-brown);
+    color: var(--hf-cream);
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-btn:hover {
+    background: var(--hf-brown);
+    color: var(--hf-gold);
+}
+
+/* === Tile Tooltip === */
+.tile-tooltip {
+    position: fixed;
+    z-index: 60;
+    background: rgba(0, 0, 0, 0.88);
+    border: 1px solid var(--hf-brown);
+    color: var(--hf-cream);
+    font-size: 7px;
+    padding: 4px 8px;
+    pointer-events: none;
+    white-space: nowrap;
+    line-height: 1.8;
+    font-family: 'Press Start 2P', monospace;
+}
+
+.tile-tooltip.hidden {
+    display: none;
+}
+
+/* === Onboarding Overlay === */
+.onboarding-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.onboarding-overlay.hidden {
+    display: none;
+}
+
+.onboarding-box {
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid var(--hf-brown);
+    padding: 20px 24px;
+    max-width: 340px;
+    color: var(--hf-cream);
+    font-size: 8px;
+    line-height: 2;
+    text-align: center;
+}
+
+.onboarding-title {
+    font-size: 12px;
+    color: var(--hf-gold);
+    margin-bottom: 12px;
+}
+
+.onboarding-text {
+    text-align: left;
+    margin-bottom: 4px;
+}
+
+/* === Task Checklist === */
+.task-checklist {
+    position: fixed;
+    bottom: 80px;
+    right: 8px;
+    z-index: 30;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid var(--hf-brown);
+    padding: 8px 10px;
+    min-width: 160px;
+    color: var(--hf-cream);
+    font-size: 7px;
+    font-family: 'Press Start 2P', monospace;
+    line-height: 2.2;
+    pointer-events: none;
+}
+
+.task-checklist.hidden {
+    display: none;
+}
+
+.task-title {
+    color: var(--hf-gold);
+    font-size: 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--hf-brown);
+    padding-bottom: 4px;
+}
+
+.task-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.task-item.done {
+    color: var(--hf-green);
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+/* === Toolbar (Tool Selector) === */
+.toolbar {
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.88);
+    border: 2px solid var(--hf-brown);
+    padding: 4px 6px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Push above mobile nav on small screens */
+@media (max-width: 767px) {
+    .toolbar {
+        bottom: 64px;
+    }
+}
+
+.tool-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: rgba(59, 36, 16, 0.5);
+    border: 2px solid transparent;
+    color: var(--hf-cream);
+    cursor: pointer;
+    padding: 2px;
+    gap: 2px;
+    font-family: 'Press Start 2P', monospace;
+}
+
+.tool-btn:hover {
+    background: var(--hf-brown);
+}
+
+.tool-btn.active {
+    border-color: var(--hf-gold);
+    background: var(--hf-brown);
+    color: var(--hf-gold);
+}
+
+.tool-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.tool-label {
+    font-size: 5px;
+    line-height: 1;
+    opacity: 0.8;
+}
