@@ -1,149 +1,150 @@
+﻿"""
+Generate isometric house sprites using actual tiles from the cozy tileset.
+Footprint: 4x3 tiles (3x3 house + 1x3 garden).
+Layered construction: stone foundation, wood walls, tinted roof, chimney.
 """
-Generate a placeholder isometric house sprite.
-Footprint: 4×3 tiles (4 wide in q, 3 deep in r).
-Output: single PNG sized for isometric placement.
-Style: cozy cottage with colored roof, tan walls, dark door.
-Sits on top of a 4×3 tile diamond area.
-"""
-from PIL import Image, ImageDraw
+from PIL import Image
 import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "public", "sprites", "buildings", "house.png")
+OUT_DIR = os.path.join(ROOT, "public", "sprites", "buildings")
+TILES_DIR = os.path.join(ROOT, "_resources", "tile_catalogue")
+PU_TILES_DIR = os.path.join(ROOT, "public", "sprites", "tiles")
 
-# Tile geometry
 TILE_W, TILE_H = 32, 16
+Z_STEP = 16
 
-# Footprint in tiles
-FP_Q, FP_R = 4, 3
+# Canvas sizing — room for 4x3 footprint + chimney (z up to 5)
+X_RANGE, Y_RANGE, Z_RANGE = 4, 3, 6
+CW = (X_RANGE + Y_RANGE) * (TILE_W // 2) + 32
+CH = (X_RANGE + Y_RANGE) * (TILE_H // 2) + Z_RANGE * Z_STEP + 48
 
-# The isometric diamond for a 3x4 block:
-# Width in pixels = (FP_Q + FP_R) * TILE_W/2 = 7 * 16 = 112
-# Height in pixels = (FP_Q + FP_R) * TILE_H/2 = 7 * 8 = 56
-# Plus wall height above the base
 
-WALL_HEIGHT = 24  # pixels of visible wall
-ROOF_HEIGHT = 18  # peak above wall top
+def load(name):
+    """Load a tile PNG from catalogue or public sprites."""
+    for d in [TILES_DIR, PU_TILES_DIR]:
+        p = os.path.join(d, name)
+        if os.path.exists(p):
+            return Image.open(p).convert("RGBA")
+    print(f"  Warning: {name} not found")
+    return Image.new("RGBA", (32, 32), (255, 0, 255, 128))
 
-# Canvas size
-CW = (FP_Q + FP_R) * (TILE_W // 2)  # 112
-CH_BASE = (FP_Q + FP_R) * (TILE_H // 2)  # 56
-CH = CH_BASE + WALL_HEIGHT + ROOF_HEIGHT  # 98
 
-img = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
-draw = ImageDraw.Draw(img)
+def iso(x, y, z):
+    """Convert grid (x, y, z) to pixel position on canvas."""
+    origin_x = Y_RANGE * (TILE_W // 2) + 16
+    origin_y = Z_RANGE * Z_STEP + 16
+    px = origin_x + (x - y) * (TILE_W // 2)
+    py = origin_y + (x + y) * (TILE_H // 2) - z * Z_STEP
+    return int(px), int(py)
 
-# Origin: the top diamond point is at (FP_R * TILE_W/2, 0 + ROOF_HEIGHT + WALL_HEIGHT)
-# Actually let me compute the 4 corners of the base diamond:
-# Top corner (iso north): center of top edge
-# For a footprint of Q tiles wide, R tiles deep:
-# Top point (q=0,r=0): x = FP_R * 16, y = ROOF_HEIGHT + WALL_HEIGHT
-# Right point (q=FP_Q,r=0): x = (FP_R + FP_Q)*16, y = ROOF_HEIGHT + WALL_HEIGHT + FP_Q*8
-# Bottom point (q=FP_Q,r=FP_R): x = (FP_Q - 0)*16... nah let me use standard formula.
 
-def iso(q, r, y_off=0):
-    """Convert tile q,r to pixel x,y"""
-    x = (q - r) * (TILE_W // 2) + FP_R * (TILE_W // 2)
-    y = (q + r) * (TILE_H // 2) + ROOF_HEIGHT + WALL_HEIGHT + y_off
-    return (x, y)
+def tint(img, color, strength=0.55):
+    """Apply a color tint while preserving detail and alpha."""
+    overlay = Image.new("RGBA", img.size, (*color, 255))
+    blended = Image.blend(img, overlay, strength)
+    blended.putalpha(img.split()[3])
+    return blended
 
-# Base diamond corners
-top = iso(0, 0)
-right = iso(FP_Q, 0)
-bottom = iso(FP_Q, FP_R)
-left = iso(0, FP_R)
 
-# Colors
-WALL_LIGHT = (222, 198, 158)   # front-right wall (lit)
-WALL_DARK = (185, 162, 128)    # front-left wall (shadow)
-ROOF_MAIN = (178, 68, 50)      # red roof (top, right face)
-ROOF_SHADOW = (142, 52, 38)    # darker roof left face
-DOOR_COLOR = (85, 55, 35)
-WINDOW_COLOR = (180, 210, 240)
-WINDOW_FRAME = (120, 90, 60)
+def generate_house(name, roof_color, _):
+    canvas = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
 
-# --- Draw walls ---
-# Right wall (visible front-right face): from right to bottom, extruded down
-wall_r_top = [right, bottom, 
-              (bottom[0], bottom[1] - WALL_HEIGHT),
-              (right[0], right[1] - WALL_HEIGHT)]
-draw.polygon(wall_r_top, fill=WALL_LIGHT)
+    # -- Load tile assets --
+    stone      = load("tile_04_00.png")  # Stone cube — foundation
+    stone_dark = load("tile_04_03.png")  # Dark stone — chimney
+    wood_lo    = load("tile_05_00.png")  # Dark wood planks — lower walls
+    wood_hi    = load("tile_05_01.png")  # Medium wood planks — upper walls
+    roof_full  = load("tile_00_13.png")  # Red roof — flat top
+    roof_right = load("tile_00_14.png")  # Red roof — right slope
+    roof_left  = load("tile_01_13.png")  # Red roof — left slope
+    roof_front = load("tile_00_08.png")  # Red roof — front piece
+    door       = load("tile_02_05.png")  # Wooden door
+    window     = load("tile_01_07.png")  # Stained glass window
+    dirt       = load("tilled.png")      # Tilled soil — garden
+    planter    = load("tile_03_00.png")  # Empty planter box
+    barrel     = load("tile_02_03.png")  # Small barrel
 
-# Left wall (visible front-left face): from left to bottom, extruded down
-wall_l_top = [left, bottom,
-              (bottom[0], bottom[1] - WALL_HEIGHT),
-              (left[0], left[1] - WALL_HEIGHT)]
-draw.polygon(wall_l_top, fill=WALL_DARK)
+    # Tint only the roof tiles — walls stay natural wood
+    t_roof_full  = tint(roof_full, roof_color)
+    t_roof_right = tint(roof_right, roof_color)
+    t_roof_left  = tint(roof_left, roof_color)
+    t_roof_front = tint(roof_front, roof_color)
 
-# Wall outlines
-draw.line([left, bottom, right], fill=(100, 70, 40), width=1)
-lwall_top = (left[0], left[1] - WALL_HEIGHT)
-rwall_top = (right[0], right[1] - WALL_HEIGHT)
-bwall_top = (bottom[0], bottom[1] - WALL_HEIGHT)
-draw.line([lwall_top, left], fill=(100, 70, 40), width=1)
-draw.line([rwall_top, right], fill=(100, 70, 40), width=1)
+    blocks = []  # (x, y, z, tile)
 
-# --- Draw roof ---
-# Roof is a peaked shape: ridge runs from top-wall to bottom-wall
-# Peak: midpoint between top and bottom, raised by ROOF_HEIGHT
-top_wall = (top[0], top[1] - WALL_HEIGHT)
-bottom_wall = (bottom[0], bottom[1] - WALL_HEIGHT)
-left_wall = (left[0], left[1] - WALL_HEIGHT)
-right_wall = (right[0], right[1] - WALL_HEIGHT)
+    # ---- Garden row: x=3, y=0..2, z=0 ----
+    for y in range(3):
+        blocks.append((3, y, 0, dirt))
 
-# Roof ridge: horizontal line at the top
-ridge_front = (bottom_wall[0], bottom_wall[1] - ROOF_HEIGHT)
-ridge_back = (top_wall[0], top_wall[1] - ROOF_HEIGHT)
+    # ---- z=0  Foundation: stone cubes ----
+    for x in range(3):
+        for y in range(3):
+            blocks.append((x, y, 0, stone))
 
-# Right roof face (lit)
-draw.polygon([right_wall, bottom_wall, ridge_front, ridge_back, top_wall], fill=ROOF_MAIN)
-# Left roof face (shadow)
-draw.polygon([left_wall, bottom_wall, ridge_front, ridge_back, top_wall], fill=ROOF_SHADOW)
+    # ---- z=1  Lower walls: dark wood ----
+    for x in range(3):
+        for y in range(3):
+            blocks.append((x, y, 1, wood_lo))
+    # Door overlaid on the visible left wall (facing garden)
+    blocks.append((2, 1, 1, door))
 
-# Roof outlines
-draw.line([top_wall, ridge_back], fill=(120, 40, 30), width=1)
-draw.line([ridge_back, ridge_front], fill=(160, 80, 60), width=1)
-draw.line([ridge_front, bottom_wall], fill=(120, 40, 30), width=1)
-draw.line([left_wall, top_wall], fill=(120, 40, 30), width=1)
-draw.line([right_wall, top_wall], fill=(120, 40, 30), width=1)
-draw.line([left_wall, bottom_wall, right_wall], fill=(120, 40, 30), width=1)
+    # ---- z=2  Upper walls: lighter wood ----
+    for x in range(3):
+        for y in range(3):
+            blocks.append((x, y, 2, wood_hi))
+    # Window on the visible right wall
+    blocks.append((1, 2, 2, window))
 
-# --- Door on right wall ---
-# Small rectangle on the right wall face, near bottom-center
-# The right wall goes from 'right' to 'bottom' at the base
-# Place door ~40% from right toward bottom
-door_base_x = int(right[0] + 0.4 * (bottom[0] - right[0]))
-door_base_y = int(right[1] + 0.4 * (bottom[1] - right[1]))
-door_w, door_h = 6, 12
-# Door as a small parallelogram on the wall face
-door_pts = [
-    (door_base_x - door_w//2, door_base_y),
-    (door_base_x + door_w//2, door_base_y),
-    (door_base_x + door_w//2, door_base_y - door_h),
-    (door_base_x - door_w//2, door_base_y - door_h),
+    # ---- z=3  Roof: tinted, with edge slopes ----
+    for x in range(3):
+        for y in range(3):
+            if x == 2 and y == 2:
+                blocks.append((x, y, 3, t_roof_front))
+            elif x == 2:
+                blocks.append((x, y, 3, t_roof_left))
+            elif y == 2:
+                blocks.append((x, y, 3, t_roof_right))
+            else:
+                blocks.append((x, y, 3, t_roof_full))
+
+    # ---- Chimney: dark stone at back corner, above roof ----
+    blocks.append((0, 0, 4, stone_dark))
+    blocks.append((0, 0, 5, stone_dark))
+
+    # ---- Garden decorations ----
+    blocks.append((3, 0, 1, planter))
+    blocks.append((3, 2, 1, barrel))
+
+    # Sort back-to-front for correct overlap
+    blocks.sort(key=lambda b: (b[0] + b[1], b[2], b[1]))
+
+    for x, y, z, tile in blocks:
+        px, py = iso(x, y, z)
+        canvas.alpha_composite(tile, (px - 16, py - 16))
+
+    # Crop away excess transparency
+    bbox = canvas.getbbox()
+    if bbox:
+        canvas = canvas.crop(bbox)
+
+    os.makedirs(OUT_DIR, exist_ok=True)
+    out = os.path.join(OUT_DIR, f"{name}.png")
+    canvas.save(out)
+    print(f"Saved {name} ({canvas.size[0]}x{canvas.size[1]})")
+
+
+variations = [
+    ("house_S1", (178, 68, 50), None),   # Red roof
+    ("house_S2", (60, 100, 160), None),   # Blue roof
+    ("house_S3", (70, 140, 80), None),    # Green roof
+    ("house_S4", (120, 80, 50), None),    # Brown roof
+    ("house_N1", (140, 70, 120), None),   # Purple roof
+    ("house_N2", (210, 180, 50), None),   # Yellow roof
+    ("house_N3", (220, 110, 40), None),   # Orange roof
+    ("house_N4", (100, 110, 120), None),  # Grey roof
 ]
-draw.polygon(door_pts, fill=DOOR_COLOR, outline=(60, 35, 20))
 
-# --- Window on left wall ---
-win_base_x = int(left[0] + 0.45 * (bottom[0] - left[0]))
-win_base_y = int(left[1] + 0.45 * (bottom[1] - left[1]))
-win_w, win_h = 8, 7
-win_yoff = -8
-win_pts = [
-    (win_base_x - win_w//2, win_base_y + win_yoff),
-    (win_base_x + win_w//2, win_base_y + win_yoff),
-    (win_base_x + win_w//2, win_base_y + win_yoff - win_h),
-    (win_base_x - win_w//2, win_base_y + win_yoff - win_h),
-]
-draw.polygon(win_pts, fill=WINDOW_COLOR, outline=WINDOW_FRAME)
-# Cross panes
-cx = win_base_x
-cy = win_base_y + win_yoff - win_h // 2
-draw.line([(win_base_x - win_w//2, cy), (win_base_x + win_w//2, cy)], fill=WINDOW_FRAME, width=1)
-draw.line([(cx, win_base_y + win_yoff), (cx, win_base_y + win_yoff - win_h)], fill=WINDOW_FRAME, width=1)
-
-# Ensure output directory exists
-os.makedirs(os.path.dirname(OUT), exist_ok=True)
-img.save(OUT)
-print(f"Saved house sprite to {OUT}")
-print(f"Size: {img.size}, bbox: {img.getbbox()}")
+if __name__ == "__main__":
+    for v in variations:
+        generate_house(*v)

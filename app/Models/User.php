@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['discord_id', 'discord_username', 'discord_avatar', 'email', 'coins', 'instance_id', 'last_login'])]
+#[Fillable(['discord_id', 'discord_username', 'discord_avatar', 'email', 'coins', 'instance_id', 'last_login', 'last_daily_bonus'])]
 #[Hidden(['remember_token'])]
 class User extends Authenticatable
 {
@@ -20,6 +20,7 @@ class User extends Authenticatable
     {
         return [
             'last_login' => 'datetime',
+            'last_daily_bonus' => 'datetime',
             'coins' => 'integer',
         ];
     }

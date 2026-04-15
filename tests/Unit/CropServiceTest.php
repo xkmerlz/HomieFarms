@@ -81,6 +81,63 @@ class CropServiceTest extends TestCase
         $this->assertSame(2, $state['stage']);
     }
 
+    public function test_remaining_seconds_returned_for_growing_crops(): void
+    {
+        $weatherService = app(WeatherService::class);
+        $cropService = app(CropService::class);
+        [$instance, $farm] = $this->makeFarm();
+
+        $sunnyDay = $this->findDayIndex($weatherService, $instance, 'sunny');
+        $moment = CarbonImmutable::createFromTimestamp($sunnyDay * WeatherService::GAME_DAY_SECONDS + (5 * 60), 'UTC');
+
+        // Herbs: 10 min grow. Planted 5 min ago on sunny, not watered → halfway through
+        $tile = Tile::create([
+            'farm_id' => $farm->id,
+            'q' => 3,
+            'r' => 0,
+            'terrain_type' => 'tilled',
+            'crop_type' => 'herbs',
+            'crop_planted_at' => $moment->subMinutes(5),
+            'crop_watered' => false,
+        ]);
+
+        $state = $cropService->getState($tile, $instance, $moment);
+
+        $this->assertArrayHasKey('remaining_seconds', $state);
+        $this->assertArrayHasKey('grow_total_seconds', $state);
+        $this->assertSame(600, $state['grow_total_seconds']); // 10min * 60
+        $this->assertGreaterThan(0, $state['remaining_seconds']);
+        $this->assertLessThanOrEqual(600, $state['remaining_seconds']);
+        // Stage should be 1 (sprout) at 50% growth
+        $this->assertSame(1, $state['stage']);
+    }
+
+    public function test_remaining_seconds_null_for_harvestable_crops(): void
+    {
+        $weatherService = app(WeatherService::class);
+        $cropService = app(CropService::class);
+        [$instance, $farm] = $this->makeFarm();
+
+        $sunnyDay = $this->findDayIndex($weatherService, $instance, 'sunny');
+        $moment = CarbonImmutable::createFromTimestamp($sunnyDay * WeatherService::GAME_DAY_SECONDS + (12 * 60), 'UTC');
+
+        // Herbs fully grown: planted 12 min ago (exceeds 10 min grow)
+        $tile = Tile::create([
+            'farm_id' => $farm->id,
+            'q' => 4,
+            'r' => 0,
+            'terrain_type' => 'tilled',
+            'crop_type' => 'herbs',
+            'crop_planted_at' => $moment->subMinutes(12),
+            'crop_watered' => false,
+        ]);
+
+        $state = $cropService->getState($tile, $instance, $moment);
+
+        $this->assertSame(3, $state['stage']);
+        $this->assertNull($state['remaining_seconds']);
+    }
+
     private function makeFarm(): array
     {
         $instance = Instance::create([

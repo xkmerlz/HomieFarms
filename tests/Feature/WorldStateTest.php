@@ -37,11 +37,23 @@ class WorldStateTest extends TestCase
                     'weather' => ['key', 'label', 'icon', 'effect'],
                     'time' => ['minutes', 'hour', 'minute', 'formatted', 'phase', 'phase_label', 'icon'],
                     'next_weather_change_at',
+                    'seconds_until_change',
+                    'forecast',
                 ],
             ]);
 
             $response->assertJsonPath('world.time.formatted', '06:00');
             $response->assertJsonPath('world.time.phase', 'dawn');
+
+            // Verify forecast contains 2 entries with expected structure
+            $forecast = $response->json('world.forecast');
+            $this->assertCount(2, $forecast);
+            $this->assertArrayHasKey('key', $forecast[0]);
+            $this->assertArrayHasKey('label', $forecast[0]);
+            $this->assertArrayHasKey('icon', $forecast[0]);
+
+            // Verify seconds_until_change is positive
+            $this->assertGreaterThan(0, $response->json('world.seconds_until_change'));
 
             $instance->refresh();
             $this->assertSame($response->json('world.weather.key'), $instance->weather);

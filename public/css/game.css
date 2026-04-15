@@ -84,15 +84,12 @@ body {
 
 #world-weather[data-weather="rainy"] {
     opacity: 1;
-    background-image: repeating-linear-gradient(120deg, rgba(181, 215, 238, 0.2) 0 2px, transparent 2px 14px);
-    animation: hf-weather-rain 1.6s linear infinite;
+    background: rgba(181, 215, 238, 0.08);
 }
 
 #world-weather[data-weather="stormy"] {
     opacity: 1;
     background-color: rgba(20, 29, 48, 0.18);
-    background-image: repeating-linear-gradient(120deg, rgba(196, 222, 242, 0.24) 0 2px, transparent 2px 12px);
-    animation: hf-weather-rain 1.1s linear infinite, hf-weather-storm 6s steps(1) infinite;
 }
 
 #world-weather[data-weather="drought"] {

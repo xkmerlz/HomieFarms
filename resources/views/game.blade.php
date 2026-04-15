@@ -37,9 +37,11 @@
             <span id="hud-coins" class="text-[#F5E6C8] text-[8px]">{{ $user['coins'] }}g</span>
         </div>
 
-        <!-- Center: Weather + Time -->
+        <!-- Center: Weather + Time + Forecast -->
         <div class="flex items-center gap-3">
             <span id="hud-weather" class="text-[#F5E6C8] text-[8px]">{{ $world['weather']['icon'] }} {{ strtolower($world['weather']['label']) }}</span>
+            <span id="hud-forecast" class="text-[#7B6BA5] text-[7px]">→ {{ $world['forecast'][0]['icon'] }} → {{ $world['forecast'][1]['icon'] }}</span>
+            <span id="hud-weather-cd" class="text-[#7B6BA5] text-[6px]"></span>
             <span id="hud-time" class="text-[#7B6BA5] text-[8px]">{{ $world['time']['icon'] }} {{ $world['time']['formatted'] }} {{ strtolower($world['time']['phase_label']) }}</span>
         </div>
 
@@ -125,6 +127,15 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast hidden"></div>
 
+    <!-- Daily Bonus Modal -->
+    <div id="daily-bonus-modal" class="onboarding-overlay hidden">
+        <div class="onboarding-box" style="text-align:center;">
+            <div class="onboarding-title" style="color:#FFD700;">Daily Bonus!</div>
+            <div class="onboarding-text" id="daily-bonus-text"></div>
+            <button id="daily-bonus-close" class="hf-btn" style="margin-top:12px;width:100%">Collect!</button>
+        </div>
+    </div>
+
     <!-- Tile Tooltip (follows cursor) -->
     <div id="tile-tooltip" class="tile-tooltip hidden"></div>
 
@@ -195,6 +206,7 @@
     <script>
         window.HF_USER = @json($user);
         window.HF_WORLD = @json($world);
+        window.HF_DAILY_BONUS = @json($dailyBonus);
     </script>
 
     <!-- PixiJS 8 (CDN) -->
@@ -204,6 +216,8 @@
     <script src="/js/engine/api.js"></script>
     <script src="/js/engine/renderer.js"></script>
     <script src="/js/engine/tilemap.js"></script>
+    <script src="/js/engine/particles.js"></script>
+    <script src="/js/engine/critters.js"></script>
     <script src="/js/engine/input.js"></script>
     <script src="/js/engine/pathfinding.js"></script>
     <script src="/js/game.js"></script>

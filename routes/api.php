@@ -29,4 +29,5 @@ Route::middleware('web', 'auth')->group(function () {
     Route::get('/shop', [ShopController::class, 'catalog']);
     Route::post('/shop/buy', [ShopController::class, 'buy']);
     Route::post('/shop/sell', [ShopController::class, 'sell']);
+    Route::post('/shop/forage', [ShopController::class, 'forage']);
 });

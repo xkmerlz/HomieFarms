@@ -94,6 +94,20 @@ class WeatherService
             $instance->save();
         }
 
+        $dayIndex = $this->getDayIndex($now);
+        $secondsUntilChange = $this->getNextDayStart($now)->timestamp - $now->timestamp;
+
+        $forecast = [];
+        for ($i = 1; $i <= 2; $i++) {
+            $fKey = $this->getWeatherForDay($instance, $dayIndex + $i);
+            $fDef = $this->getWeatherDefinition($fKey);
+            $forecast[] = [
+                'key' => $fKey,
+                'label' => $fDef['label'],
+                'icon' => $fDef['icon'],
+            ];
+        }
+
         return [
             'weather' => [
                 'key' => $weatherKey,
@@ -111,6 +125,8 @@ class WeatherService
                 'icon' => $phase['icon'],
             ],
             'next_weather_change_at' => $this->getNextDayStart($now)->toIso8601String(),
+            'seconds_until_change' => $secondsUntilChange,
+            'forecast' => $forecast,
         ];
     }
 

@@ -33,15 +33,6 @@ if (app()->environment('local')) {
         );
         \Illuminate\Support\Facades\Auth::login($user);
 
-        return view('game', [
-            'user' => [
-                'id' => $user->id,
-                'username' => $user->discord_username,
-                'avatar' => $user->discord_avatar,
-                'coins' => $user->coins,
-                'instance_id' => $user->instance_id,
-            ],
-            'world' => app(\App\Services\WeatherService::class)->getWorldStateForUser($user),
-        ]);
+        return app(\App\Http\Controllers\GameController::class)->index(request());
     });
 }

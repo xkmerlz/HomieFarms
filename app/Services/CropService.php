@@ -41,6 +41,8 @@ class CropService
                 'stage' => 0,
                 'watered' => $tile->crop_watered,
                 'growth_units' => 0.0,
+                'remaining_seconds' => $baseGrowSeconds,
+                'grow_total_seconds' => $baseGrowSeconds,
             ];
         }
 
@@ -83,10 +85,24 @@ class CropService
             ? -1
             : $this->resolveStage($growthUnits);
 
+        $remainingSeconds = null;
+        if ($stage >= 0 && $stage < 3) {
+            $currentMultiplier = $this->weatherService->getGrowthMultiplier($currentWeather);
+            if ($effectiveWatered) {
+                $currentMultiplier *= self::WATERED_GROWTH_MULTIPLIER;
+            }
+            $unitsRemaining = max(0.0, 1.0 - $growthUnits);
+            $remainingSeconds = $currentMultiplier > 0
+                ? (int) ceil(($unitsRemaining / $currentMultiplier) * $baseGrowSeconds)
+                : null;
+        }
+
         return [
             'stage' => $stage,
             'watered' => $effectiveWatered,
             'growth_units' => $growthUnits,
+            'remaining_seconds' => $remainingSeconds,
+            'grow_total_seconds' => $baseGrowSeconds,
         ];
     }
 

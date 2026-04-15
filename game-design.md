@@ -613,6 +613,28 @@ homiefarms/
 - [ ] Weather system (affects crops)
 - [ ] Withering mechanic
 
+### M6: World Feedback & Readability
+- [ ] Weather polish pass — rain and storm particle effects, stronger atmospheric overlays
+- [ ] Night lighting pass — warmer building glows / lantern-style highlights during night phases
+- [ ] Forecast HUD — show current weather, next weather change countdown, and simple upcoming forecast info
+- [ ] Crop timer UI — show per-crop remaining growth time in hours, minutes, and seconds where useful (tooltip, panel, or tile overlay)
+
+### M7: Sprite Rework
+- [x] Audit and replace procedurally-generated crop sprites with hand-drawn or tileset-sourced art (3 existing + prep for 2 new: tomatoes, pumpkins)
+- [ ] Rework building sprites (well, silo, market) for visual consistency and better isometric depth
+- [x] Fix water tile sizing (64×64 → 32×32) and add water animation frames
+- [x] Add critter sprites from `_resources/critters/` (badger, boar, stag, wolf) as ambient wandering NPCs
+- [ ] Replace player orb with proper character sprite (idle + walk animation frames)
+- [ ] Create sprite atlas / spritesheet for batched rendering (consolidate individual PNGs)
+
+### M8: Terrain Rework
+- [ ] Auto-tiling / edge blending — smooth transitions between grass, tilled, stone, path, water
+- [x] Frustum culling — only render tiles visible on screen (currently all 42×172 = 7,224 tiles rendered)
+- [ ] Terrain elevation system — `elevation` column on tiles, stacked isometric cubes, pathfinding cost
+- [ ] Seasonal terrain variants — spring/summer/fall/winter grass and tree tints
+- [x] Decorative terrain objects from Cozy tileset (barrels, crates, flowers, fences, trees, stumps)
+- [x] Sprite pooling — reuse PIXI.Sprite instances for off-screen tiles instead of destroying/recreating
+
 ---
 
 ## Future Ideas (Post-MVP)

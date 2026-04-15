@@ -78,4 +78,7 @@ HF.Api = {
     sell(item, quantity) {
         return this._fetch('/api/shop/sell', { method: 'POST', body: { item, quantity } });
     },
+    forage() {
+        return this._fetch('/api/shop/forage', { method: 'POST' });
+    },
 };

@@ -23,6 +23,9 @@ HF.Renderer = class {
     // Camera state
     camera = { x: 0, y: 0, zoom: 2 };
 
+    /** @type {Function|null} Callback when viewport changes (camera move/zoom) */
+    onViewportChange = null;
+
     constructor() {
         this._initPromise = this._init();
     }
@@ -134,5 +137,6 @@ HF.Renderer = class {
         this.world.x = this.camera.x;
         this.world.y = this.camera.y;
         this.world.scale.set(this.camera.zoom);
+        if (this.onViewportChange) this.onViewportChange();
     }
 };

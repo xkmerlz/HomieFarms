@@ -17,8 +17,17 @@ window.HF = window.HF || {};
     await tilemap.loadTextures();
     tilemap.renderGrid();
 
+    const particles = new HF.Particles(renderer.app);
+
+    // Critter NPC system
+    const critters = new HF.Critters(renderer, tilemap);
+    await critters.loadTextures();
+
     const input = new HF.Input(renderer, tilemap);
     const pathfinder = new HF.Pathfinding(tilemap);
+
+    // Hook viewport change for frustum culling
+    renderer.onViewportChange = () => tilemap.updateViewport();
 
     // Center camera on plaza center
     const mid = Math.floor((HF.Tilemap.PLAZA_Q_MIN + HF.Tilemap.PLAZA_Q_MAX) / 2);
@@ -31,8 +40,38 @@ window.HF = window.HF || {};
     let worldState = window.HF_WORLD || null;
     const weatherEl = document.getElementById('hud-weather');
     const timeEl = document.getElementById('hud-time');
+    const forecastEl = document.getElementById('hud-forecast');
+    const weatherCdEl = document.getElementById('hud-weather-cd');
     const lightingOverlay = document.getElementById('world-lighting');
     const weatherOverlay = document.getElementById('world-weather');
+
+    // --- Tooltip state (declared early for tick interval access) ---
+    const tooltipEl = document.getElementById('tile-tooltip');
+    let tooltipQ = -1, tooltipR = -1;
+
+    // --- Countdown state (ticked every second) ---
+    let weatherCountdown = worldState?.seconds_until_change || 0;
+    let lastTickTime = Date.now();
+
+    function formatCountdown(totalSeconds) {
+        const s = Math.max(0, Math.floor(totalSeconds));
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m}m ${sec < 10 ? '0' : ''}${sec}s`;
+    }
+
+    function formatCropTimer(totalSeconds) {
+        const s = Math.max(0, Math.floor(totalSeconds));
+        if (s >= 3600) {
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            const sec = s % 60;
+            return `${h}h ${m}m ${sec}s`;
+        }
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m}m ${sec}s`;
+    }
 
     function applyWorldState(nextWorld) {
         if (!nextWorld) {
@@ -41,6 +80,10 @@ window.HF = window.HF || {};
 
         const previousWeather = worldState?.weather?.key || null;
         worldState = nextWorld;
+
+        // Reset countdown from server
+        weatherCountdown = nextWorld.seconds_until_change || 0;
+        lastTickTime = Date.now();
 
         if (weatherEl) {
             weatherEl.textContent = `${nextWorld.weather.icon} ${nextWorld.weather.label.toLowerCase()}`;
@@ -51,13 +94,30 @@ window.HF = window.HF || {};
             timeEl.textContent = `${nextWorld.time.icon} ${nextWorld.time.formatted} ${nextWorld.time.phase_label.toLowerCase()}`;
         }
 
+        // Forecast strip
+        if (forecastEl && nextWorld.forecast) {
+            forecastEl.textContent = `\u2192 ${nextWorld.forecast[0].icon} \u2192 ${nextWorld.forecast[1].icon}`;
+            forecastEl.title = `Next: ${nextWorld.forecast[0].label}, then ${nextWorld.forecast[1].label}`;
+        }
+
+        // Weather change countdown
+        if (weatherCdEl) {
+            weatherCdEl.textContent = formatCountdown(weatherCountdown);
+        }
+
         if (lightingOverlay) {
             lightingOverlay.dataset.phase = nextWorld.time.phase;
         }
 
+        // Update building glow lighting
+        tilemap.setDayPhase(nextWorld.time.phase);
+
         if (weatherOverlay) {
             weatherOverlay.dataset.weather = nextWorld.weather.key;
         }
+
+        // Update particle effects
+        particles.setWeather(nextWorld.weather.key);
 
         return { weatherChanged: previousWeather !== null && previousWeather !== nextWorld.weather.key };
     }
@@ -67,6 +127,7 @@ window.HF = window.HF || {};
             farmData = await HF.Api.getFarm();
             tilemap.applyFarmData(farmData);
             applyWorldState(farmData.world);
+            critters.spawn();
             console.log('[HomieFarms] Farm data loaded:', farmData.farm);
         } catch (e) {
             console.warn('[HomieFarms] Could not load farm data (API may not be available):', e.message);
@@ -97,6 +158,33 @@ window.HF = window.HF || {};
     await loadFarmData();
     await loadInventory();
     applyWorldState(worldState);
+
+    // --- 1-second tick: countdown timers + crop remaining ---
+    setInterval(() => {
+        const now = Date.now();
+        const elapsed = (now - lastTickTime) / 1000;
+        lastTickTime = now;
+
+        // Weather countdown
+        weatherCountdown = Math.max(0, weatherCountdown - elapsed);
+        if (weatherCdEl) {
+            weatherCdEl.textContent = formatCountdown(weatherCountdown);
+        }
+
+        // Decrement crop remaining times locally
+        for (const [, ft] of tilemap.farmTiles) {
+            if (ft.remaining != null && ft.remaining > 0) {
+                ft.remaining = Math.max(0, ft.remaining - elapsed);
+            }
+        }
+
+        // If tooltip is showing a crop, refresh it
+        if (tooltipQ >= 0 && tooltipR >= 0) {
+            const oldQ = tooltipQ, oldR = tooltipR;
+            tooltipQ = -1; tooltipR = -1; // force refresh
+            updateTooltip(oldQ, oldR);
+        }
+    }, 1000);
 
     // --- Tool System ---
     let activeTool = 'cursor'; // 'cursor' | 'trim' | 'water' | 'harvest'
@@ -719,6 +807,28 @@ window.HF = window.HF || {};
                 div.appendChild(buyBtn);
                 list.appendChild(div);
             }
+
+            // Forage button (failsafe for broke players)
+            const forageDiv = document.createElement('div');
+            forageDiv.className = 'shop-item';
+            forageDiv.style.borderTop = '1px solid var(--hf-purple)';
+            forageDiv.style.marginTop = '8px';
+            forageDiv.style.paddingTop = '8px';
+            forageDiv.innerHTML = '<span>🌿 Wild Herbs</span><span style="color:#6B9F4A">Free</span>';
+            const forageBtn = document.createElement('button');
+            forageBtn.className = 'shop-buy-btn';
+            forageBtn.textContent = 'Forage';
+            forageBtn.addEventListener('click', async () => {
+                try {
+                    const result = await HF.Api.forage();
+                    await loadInventory();
+                    showToast(result.message);
+                } catch (e) {
+                    showToast(e.message, true);
+                }
+            });
+            forageDiv.appendChild(forageBtn);
+            list.appendChild(forageDiv);
         } else if (shopTab === 'buildings') {
             const buildings = shopData.buildings || [];
             if (buildings.length === 0) {
@@ -782,9 +892,6 @@ window.HF = window.HF || {};
     });
 
     // --- Tile Tooltip ---
-    const tooltipEl = document.getElementById('tile-tooltip');
-    let tooltipQ = -1, tooltipR = -1;
-
     canvas.addEventListener('mousemove', (e) => {
         if (tooltipEl && !tooltipEl.classList.contains('hidden')) {
             tooltipEl.style.left = (e.clientX + 14) + 'px';
@@ -818,6 +925,9 @@ window.HF = window.HF || {};
                 const name = info.crop.charAt(0).toUpperCase() + info.crop.slice(1);
                 text = `${name} — ${info.stageLabel}`;
                 if (info.watered && info.stage >= 0 && info.stage < 3) text += ' 💧';
+                if (info.remaining != null && info.remaining > 0) {
+                    text += `\n⏱ ${formatCropTimer(info.remaining)}`;
+                }
             } else if (info.terrain === 'tilled') {
                 text = 'Tilled soil (right-click to plant)';
             } else {
@@ -826,7 +936,7 @@ window.HF = window.HF || {};
         }
 
         if (text) {
-            tooltipEl.textContent = text;
+            tooltipEl.innerHTML = text.replace(/\n/g, '<br>');
             tooltipEl.classList.remove('hidden');
         } else {
             tooltipEl.classList.add('hidden');
@@ -926,6 +1036,12 @@ window.HF = window.HF || {};
     renderer.app.ticker.add((ticker) => {
         const dt = ticker.deltaTime;
 
+        // Water animation
+        tilemap.tickWaterAnimation(dt);
+
+        // Critter NPC animation
+        critters.tick(dt);
+
         // Orb movement (constant speed along path)
         if (moving) {
             const dx = targetX - orb.x;
@@ -984,6 +1100,25 @@ window.HF = window.HF || {};
             tilemap.container.sortChildren();
         }
     });
+
+    // --- Daily Bonus Popup ---
+    if (window.HF_DAILY_BONUS) {
+        const bonus = window.HF_DAILY_BONUS;
+        const modal = document.getElementById('daily-bonus-modal');
+        const textEl = document.getElementById('daily-bonus-text');
+        const closeBtn = document.getElementById('daily-bonus-close');
+        if (modal && textEl && closeBtn) {
+            const seedName = bonus.seed_type.charAt(0).toUpperCase() + bonus.seed_type.slice(1);
+            textEl.innerHTML = `Welcome back!<br><br>` +
+                `<span style="color:#FFD700;font-size:10px">+${bonus.coins}g coins</span><br>` +
+                `<span style="color:#6B9F4A;font-size:10px">+${bonus.seeds} ${seedName} Seeds</span>`;
+            modal.classList.remove('hidden');
+            updateCoins(window.HF_USER.coins);
+            closeBtn.addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+        }
+    }
 
     // --- Debug info ---
     console.log('[HomieFarms] Game initialized');

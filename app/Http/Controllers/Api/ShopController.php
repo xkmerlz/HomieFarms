@@ -121,6 +121,38 @@ class ShopController extends Controller
     }
 
     /**
+     * POST /api/shop/forage — Forage free herb seeds (failsafe for broke players).
+     * Available only when player has < 5 coins AND 0 seeds of any type.
+     */
+    public function forage(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $totalSeeds = InventoryItem::where('user_id', $user->id)
+            ->where('item_type', 'seed')
+            ->sum('quantity');
+
+        $minSeedCost = min(array_column(Tile::CROPS, 'seed_cost'));
+
+        if ($user->coins >= $minSeedCost || $totalSeeds > 0) {
+            return response()->json(['error' => 'You can still buy or plant seeds'], 400);
+        }
+
+        $forageAmount = 3;
+
+        InventoryItem::firstOrCreate(
+            ['user_id' => $user->id, 'item_type' => 'seed', 'item_id' => 'herbs'],
+            ['quantity' => 0]
+        )->increment('quantity', $forageAmount);
+
+        return response()->json([
+            'item' => 'herbs',
+            'quantity' => $forageAmount,
+            'message' => 'Foraged wild herb seeds!',
+        ]);
+    }
+
+    /**
      * Calculate sell bonus from Market Stall buildings on the player's farm.
      */
     private function getMarketSellBonus($user): float

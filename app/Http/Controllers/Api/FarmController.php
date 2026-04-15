@@ -27,27 +27,7 @@ class FarmController extends Controller
         $farm->load(['tiles', 'instance']);
         $world = $this->weatherService->getWorldState($farm->instance);
 
-        $tiles = $farm->tiles->map(function (Tile $tile) use ($farm) {
-            $cropState = $tile->getCropState($farm->instance);
-            $data = [
-                'q' => $tile->q,
-                'r' => $tile->r,
-                'terrain' => $tile->terrain_type,
-            ];
-
-            if ($tile->crop_type) {
-                $data['crop'] = $tile->crop_type;
-                $data['stage'] = $cropState['stage'];
-                $data['watered'] = $cropState['watered'];
-            }
-
-            if ($tile->structure_type) {
-                $data['structure'] = $tile->structure_type;
-                $data['tier'] = $tile->structure_tier;
-            }
-
-            return $data;
-        });
+        $tiles = $farm->tiles->map(fn (Tile $tile) => $this->serializeTile($tile, $farm));
 
         return response()->json([
             'farm' => [
@@ -113,11 +93,7 @@ class FarmController extends Controller
 
         $tile->update(['terrain_type' => 'tilled']);
 
-        return response()->json([
-            'q' => $q,
-            'r' => $r,
-            'terrain' => 'tilled',
-        ]);
+        return response()->json($this->tileMeta($tile));
     }
 
     /**
@@ -185,14 +161,14 @@ class FarmController extends Controller
             'crop_watered' => $storedWatered,
         ]);
 
-        return response()->json([
-            'q' => $q,
-            'r' => $r,
-            'terrain' => 'tilled',
-            'crop' => $cropType,
-            'stage' => 0,
-            'watered' => $effectiveWatered,
-        ]);
+        return response()->json(array_merge(
+            $this->tileMeta($tile),
+            [
+                'crop' => $cropType,
+                'stage' => 0,
+                'watered' => $effectiveWatered,
+            ]
+        ));
     }
 
     /**
@@ -230,11 +206,10 @@ class FarmController extends Controller
 
         $tile->update(['crop_watered' => true]);
 
-        return response()->json([
-            'q' => $q,
-            'r' => $r,
-            'watered' => true,
-        ]);
+        return response()->json(array_merge(
+            $this->tileMeta($tile),
+            ['watered' => true]
+        ));
     }
 
     /**
@@ -276,12 +251,10 @@ class FarmController extends Controller
                 'crop_watered' => false,
                 'terrain_type' => 'tilled', // stays tilled
             ]);
-            return response()->json([
-                'q' => $q,
-                'r' => $r,
-                'withered' => true,
-                'terrain' => 'tilled',
-            ]);
+            return response()->json(array_merge(
+                $this->tileMeta($tile),
+                ['withered' => true]
+            ));
         }
 
         if ($stage < 3) {
@@ -305,13 +278,13 @@ class FarmController extends Controller
             'terrain_type' => 'tilled',
         ]);
 
-        return response()->json([
-            'q' => $q,
-            'r' => $r,
-            'terrain' => 'tilled',
-            'harvested' => $cropName,
-            'value' => $cropDef['harvest_value'],
-        ]);
+        return response()->json(array_merge(
+            $this->tileMeta($tile),
+            [
+                'harvested' => $cropName,
+                'value' => $cropDef['harvest_value'],
+            ]
+        ));
     }
 
     /**
@@ -349,11 +322,7 @@ class FarmController extends Controller
             'crop_watered' => false,
         ]);
 
-        return response()->json([
-            'q' => $q,
-            'r' => $r,
-            'terrain' => 'tilled',
-        ]);
+        return response()->json($this->tileMeta($tile));
     }
 
     /**
@@ -414,14 +383,14 @@ class FarmController extends Controller
             $this->applyWellWatering($farm, $q, $r, $def['radius']);
         }
 
-        return response()->json([
-            'q' => $q,
-            'r' => $r,
-            'structure' => $buildingType,
-            'tier' => 1,
-            'terrain' => $tile->terrain_type,
-            'coins' => $user->fresh()->coins,
-        ]);
+        return response()->json(array_merge(
+            $this->tileMeta($tile),
+            [
+                'structure' => $buildingType,
+                'tier' => 1,
+                'coins' => $user->fresh()->coins,
+            ]
+        ));
     }
 
     /**
@@ -466,13 +435,13 @@ class FarmController extends Controller
             $user->increment('coins', $refund);
         }
 
-        return response()->json([
-            'q' => $q,
-            'r' => $r,
-            'terrain' => $tile->terrain_type,
-            'coins' => $user->fresh()->coins,
-            'refund' => $refund,
-        ]);
+        return response()->json(array_merge(
+            $this->tileMeta($tile),
+            [
+                'coins' => $user->fresh()->coins,
+                'refund' => $refund,
+            ]
+        ));
     }
 
     /**
@@ -526,13 +495,48 @@ class FarmController extends Controller
             $this->applyWellWatering($farm, $q, $r, $def['upgrade_radius']);
         }
 
-        return response()->json([
-            'q' => $q,
-            'r' => $r,
-            'structure' => $tile->structure_type,
-            'tier' => 2,
-            'coins' => $user->fresh()->coins,
-        ]);
+        return response()->json(array_merge(
+            $this->tileMeta($tile),
+            [
+                'structure' => $tile->structure_type,
+                'tier' => 2,
+                'coins' => $user->fresh()->coins,
+            ]
+        ));
+    }
+
+    private function serializeTile(Tile $tile, $farm): array
+    {
+        $cropState = $tile->getCropState($farm->instance);
+        $data = $this->tileMeta($tile);
+
+        if ($tile->crop_type) {
+            $data['crop'] = $tile->crop_type;
+            $data['stage'] = $cropState['stage'];
+            $data['watered'] = $cropState['watered'];
+            if ($cropState['remaining_seconds'] !== null) {
+                $data['remaining'] = $cropState['remaining_seconds'];
+                $data['grow_total'] = $cropState['grow_total_seconds'];
+            }
+        }
+
+        if ($tile->structure_type) {
+            $data['structure'] = $tile->structure_type;
+            $data['tier'] = $tile->structure_tier;
+        }
+
+        return $data;
+    }
+
+    private function tileMeta(Tile $tile): array
+    {
+        return [
+            'q' => $tile->q,
+            'r' => $tile->r,
+            'terrain' => $tile->terrain_type,
+            'elevation' => $tile->elevation_level ?? 2,
+            'flow_direction' => $tile->water_flow_direction,
+        ];
     }
 
     /**

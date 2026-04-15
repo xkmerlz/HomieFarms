@@ -9,6 +9,7 @@ class Tile extends Model
 {
     protected $fillable = [
         'farm_id', 'q', 'r', 'terrain_type',
+        'elevation_level', 'water_flow_direction',
         'structure_type', 'structure_tier',
         'crop_type', 'crop_planted_at', 'crop_watered',
     ];
@@ -18,6 +19,7 @@ class Tile extends Model
         return [
             'q' => 'integer',
             'r' => 'integer',
+            'elevation_level' => 'integer',
             'structure_tier' => 'integer',
             'crop_planted_at' => 'datetime',
             'crop_watered' => 'boolean',
