@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\CropService;
 use Illuminate\Database\Eloquent\Model;
 
 class Tile extends Model
@@ -34,34 +35,19 @@ class Tile extends Model
      *
      * Stages: 0=planted, 1=sprouting, 2=growing, 3=harvestable, -1=withered
      */
-    public function getCropStage(): ?int
+    public function getCropState(?Instance $instance = null): ?array
     {
-        if (!$this->crop_type || !$this->crop_planted_at) {
-            return null;
-        }
+        return app(CropService::class)->getState($this, $instance);
+    }
 
-        $crop = self::CROPS[$this->crop_type] ?? null;
-        if (!$crop) return null;
+    public function getCropStage(?Instance $instance = null): ?int
+    {
+        return $this->getCropState($instance)['stage'] ?? null;
+    }
 
-        $growSeconds = $crop['grow_minutes'] * 60;
-        if ($this->crop_watered) {
-            $growSeconds *= 0.9; // 10% faster when watered
-        }
-
-        $elapsed = now()->diffInSeconds($this->crop_planted_at);
-
-        // Withered: past 2× grow time
-        if ($elapsed >= $growSeconds * 2) {
-            return -1;
-        }
-
-        // 4 stages evenly split across grow time
-        $progress = min($elapsed / $growSeconds, 1.0);
-
-        if ($progress >= 1.0) return 3; // harvestable
-        if ($progress >= 0.66) return 2; // growing
-        if ($progress >= 0.33) return 1; // sprouting
-        return 0; // planted
+    public function isEffectivelyWatered(?Instance $instance = null): bool
+    {
+        return (bool) ($this->getCropState($instance)['watered'] ?? false);
     }
 
     /**

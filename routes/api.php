@@ -3,10 +3,14 @@
 use App\Http\Controllers\Api\FarmController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\ShopController;
+use App\Http\Controllers\Api\WorldController;
 use Illuminate\Support\Facades\Route;
 
 // All game API routes use session auth (same-origin browser requests)
 Route::middleware('web', 'auth')->group(function () {
+    // World
+    Route::get('/world', [WorldController::class, 'show']);
+
     // Farm
     Route::get('/farm', [FarmController::class, 'show']);
     Route::post('/farm/till', [FarmController::class, 'till']);

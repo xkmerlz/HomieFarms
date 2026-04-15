@@ -6,13 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\Tile;
 use App\Services\FarmService;
+use App\Services\WeatherService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class FarmController extends Controller
 {
     public function __construct(
-        private FarmService $farmService
+        private FarmService $farmService,
+        private WeatherService $weatherService
     ) {}
 
     /**
@@ -22,9 +24,11 @@ class FarmController extends Controller
     {
         $user = $request->user();
         $farm = $this->farmService->getOrCreateFarm($user);
-        $farm->load('tiles');
+        $farm->load(['tiles', 'instance']);
+        $world = $this->weatherService->getWorldState($farm->instance);
 
-        $tiles = $farm->tiles->map(function (Tile $tile) {
+        $tiles = $farm->tiles->map(function (Tile $tile) use ($farm) {
+            $cropState = $tile->getCropState($farm->instance);
             $data = [
                 'q' => $tile->q,
                 'r' => $tile->r,
@@ -33,8 +37,8 @@ class FarmController extends Controller
 
             if ($tile->crop_type) {
                 $data['crop'] = $tile->crop_type;
-                $data['stage'] = $tile->getCropStage();
-                $data['watered'] = $tile->crop_watered;
+                $data['stage'] = $cropState['stage'];
+                $data['watered'] = $cropState['watered'];
             }
 
             if ($tile->structure_type) {
@@ -70,6 +74,7 @@ class FarmController extends Controller
                 ],
             ],
             'tiles' => $tiles,
+            'world' => $world,
         ]);
     }
 
@@ -168,13 +173,16 @@ class FarmController extends Controller
         $seedItem->decrement('quantity');
 
         // Check if a nearby well should auto-water this crop
-        $autoWatered = $this->isNearWell($farm, $q, $r);
+        $storedWatered = $this->isNearWell($farm, $q, $r);
+        $effectiveWatered = $storedWatered || $this->weatherService->isAutoWatering(
+            $this->weatherService->getWeatherForMoment($farm->instance)
+        );
 
         // Plant crop
         $tile->update([
             'crop_type' => $cropType,
             'crop_planted_at' => now(),
-            'crop_watered' => $autoWatered,
+            'crop_watered' => $storedWatered,
         ]);
 
         return response()->json([
@@ -183,7 +191,7 @@ class FarmController extends Controller
             'terrain' => 'tilled',
             'crop' => $cropType,
             'stage' => 0,
-            'watered' => $autoWatered,
+            'watered' => $effectiveWatered,
         ]);
     }
 
@@ -216,7 +224,7 @@ class FarmController extends Controller
             return response()->json(['error' => 'No crop to water'], 400);
         }
 
-        if ($tile->crop_watered) {
+        if ($tile->isEffectivelyWatered($farm->instance)) {
             return response()->json(['error' => 'Already watered'], 400);
         }
 
@@ -258,7 +266,7 @@ class FarmController extends Controller
             return response()->json(['error' => 'No crop to harvest'], 400);
         }
 
-        $stage = $tile->getCropStage();
+        $stage = $tile->getCropStage($farm->instance);
 
         if ($stage === -1) {
             // Withered — clear the crop, no reward
@@ -331,7 +339,7 @@ class FarmController extends Controller
             ->where('r', $r)
             ->first();
 
-        if (!$tile || !$tile->crop_type || $tile->getCropStage() !== -1) {
+        if (!$tile || !$tile->crop_type || $tile->getCropStage($farm->instance) !== -1) {
             return response()->json(['error' => 'No withered crop here'], 400);
         }
 

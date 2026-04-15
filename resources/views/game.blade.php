@@ -23,6 +23,8 @@
     <!-- PixiJS Canvas Container -->
     <div id="game-container" class="fixed inset-0 z-0">
         <canvas id="game-canvas"></canvas>
+        <div id="world-lighting" class="world-overlay-layer" data-phase="{{ $world['time']['phase'] }}"></div>
+        <div id="world-weather" class="world-overlay-layer" data-weather="{{ $world['weather']['key'] }}"></div>
     </div>
 
     <!-- HUD Overlay (top bar) -->
@@ -37,8 +39,8 @@
 
         <!-- Center: Weather + Time -->
         <div class="flex items-center gap-3">
-            <span id="hud-weather" class="text-[#F5E6C8] text-[8px]">&#9788; sunny</span>
-            <span id="hud-time" class="text-[#7B6BA5] text-[8px]">day</span>
+            <span id="hud-weather" class="text-[#F5E6C8] text-[8px]">{{ $world['weather']['icon'] }} {{ strtolower($world['weather']['label']) }}</span>
+            <span id="hud-time" class="text-[#7B6BA5] text-[8px]">{{ $world['time']['icon'] }} {{ $world['time']['formatted'] }} {{ strtolower($world['time']['phase_label']) }}</span>
         </div>
 
         <!-- Right: Username + Logout -->
@@ -192,6 +194,7 @@
     <!-- Inject server data for JS -->
     <script>
         window.HF_USER = @json($user);
+        window.HF_WORLD = @json($world);
     </script>
 
     <!-- PixiJS 8 (CDN) -->

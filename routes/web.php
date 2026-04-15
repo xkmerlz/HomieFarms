@@ -41,6 +41,7 @@ if (app()->environment('local')) {
                 'coins' => $user->coins,
                 'instance_id' => $user->instance_id,
             ],
+            'world' => app(\App\Services\WeatherService::class)->getWorldStateForUser($user),
         ]);
     });
 }

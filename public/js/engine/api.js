@@ -32,6 +32,9 @@ HF.Api = {
     },
 
     // --- Farm ---
+    getWorld() {
+        return this._fetch('/api/world');
+    },
     getFarm() {
         return this._fetch('/api/farm');
     },

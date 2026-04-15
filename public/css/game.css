@@ -36,6 +36,92 @@ body {
 
 #game-container {
     touch-action: none;
+    overflow: hidden;
+}
+
+.world-overlay-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+#world-lighting {
+    z-index: 1;
+    mix-blend-mode: multiply;
+    transition: background-color 0.35s ease;
+}
+
+#world-lighting[data-phase="dawn"] {
+    background: rgba(237, 160, 94, 0.12);
+}
+
+#world-lighting[data-phase="day"] {
+    background: rgba(0, 0, 0, 0);
+}
+
+#world-lighting[data-phase="dusk"] {
+    background: rgba(150, 89, 48, 0.18);
+}
+
+#world-lighting[data-phase="night"] {
+    background: rgba(18, 26, 44, 0.34);
+}
+
+#world-weather {
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.35s ease, background-color 0.35s ease;
+}
+
+#world-weather[data-weather="sunny"] {
+    opacity: 0;
+}
+
+#world-weather[data-weather="cloudy"] {
+    opacity: 1;
+    background: rgba(109, 119, 136, 0.12);
+}
+
+#world-weather[data-weather="rainy"] {
+    opacity: 1;
+    background-image: repeating-linear-gradient(120deg, rgba(181, 215, 238, 0.2) 0 2px, transparent 2px 14px);
+    animation: hf-weather-rain 1.6s linear infinite;
+}
+
+#world-weather[data-weather="stormy"] {
+    opacity: 1;
+    background-color: rgba(20, 29, 48, 0.18);
+    background-image: repeating-linear-gradient(120deg, rgba(196, 222, 242, 0.24) 0 2px, transparent 2px 12px);
+    animation: hf-weather-rain 1.1s linear infinite, hf-weather-storm 6s steps(1) infinite;
+}
+
+#world-weather[data-weather="drought"] {
+    opacity: 1;
+    background: linear-gradient(to bottom, rgba(204, 150, 68, 0.08), rgba(161, 98, 31, 0.18));
+}
+
+@keyframes hf-weather-rain {
+    from {
+        background-position: 0 0;
+    }
+
+    to {
+        background-position: 0 24px;
+    }
+}
+
+@keyframes hf-weather-storm {
+    0%, 94%, 100% {
+        box-shadow: inset 0 0 0 rgba(255, 255, 255, 0);
+    }
+
+    95% {
+        box-shadow: inset 0 0 120px rgba(255, 255, 255, 0.1);
+    }
+
+    97% {
+        box-shadow: inset 0 0 180px rgba(255, 255, 255, 0.14);
+    }
 }
 
 /* === Pixel border utilities === */

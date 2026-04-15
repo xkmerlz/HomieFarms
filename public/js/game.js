@@ -28,15 +28,60 @@ window.HF = window.HF || {};
     // --- Load farm data from server ---
     let farmData = null;
     let inventory = [];
+    let worldState = window.HF_WORLD || null;
+    const weatherEl = document.getElementById('hud-weather');
+    const timeEl = document.getElementById('hud-time');
+    const lightingOverlay = document.getElementById('world-lighting');
+    const weatherOverlay = document.getElementById('world-weather');
+
+    function applyWorldState(nextWorld) {
+        if (!nextWorld) {
+            return { weatherChanged: false };
+        }
+
+        const previousWeather = worldState?.weather?.key || null;
+        worldState = nextWorld;
+
+        if (weatherEl) {
+            weatherEl.textContent = `${nextWorld.weather.icon} ${nextWorld.weather.label.toLowerCase()}`;
+            weatherEl.title = nextWorld.weather.effect;
+        }
+
+        if (timeEl) {
+            timeEl.textContent = `${nextWorld.time.icon} ${nextWorld.time.formatted} ${nextWorld.time.phase_label.toLowerCase()}`;
+        }
+
+        if (lightingOverlay) {
+            lightingOverlay.dataset.phase = nextWorld.time.phase;
+        }
+
+        if (weatherOverlay) {
+            weatherOverlay.dataset.weather = nextWorld.weather.key;
+        }
+
+        return { weatherChanged: previousWeather !== null && previousWeather !== nextWorld.weather.key };
+    }
 
     async function loadFarmData() {
         try {
             farmData = await HF.Api.getFarm();
             tilemap.applyFarmData(farmData);
+            applyWorldState(farmData.world);
             console.log('[HomieFarms] Farm data loaded:', farmData.farm);
         } catch (e) {
             console.warn('[HomieFarms] Could not load farm data (API may not be available):', e.message);
         }
+    }
+
+    async function refreshWorldState() {
+        try {
+            const data = await HF.Api.getWorld();
+            const { weatherChanged } = applyWorldState(data.world);
+
+            if (weatherChanged) {
+                await loadFarmData();
+            }
+        } catch (e) { /* silent */ }
     }
 
     async function loadInventory() {
@@ -51,6 +96,7 @@ window.HF = window.HF || {};
 
     await loadFarmData();
     await loadInventory();
+    applyWorldState(worldState);
 
     // --- Tool System ---
     let activeTool = 'cursor'; // 'cursor' | 'trim' | 'water' | 'harvest'
@@ -89,6 +135,7 @@ window.HF = window.HF || {};
     setInterval(async () => {
         try {
             const data = await HF.Api.getFarm();
+            applyWorldState(data.world);
             // Update only crop stages without full re-render
             for (const tile of data.tiles) {
                 if (tile.crop) {
@@ -97,6 +144,8 @@ window.HF = window.HF || {};
             }
         } catch (e) { /* silent */ }
     }, 30000);
+
+    setInterval(refreshWorldState, 15000);
 
     // --- Player Orb ---
     const orb = new PIXI.Container();
@@ -712,36 +761,6 @@ window.HF = window.HF || {};
         const el = document.getElementById('hud-coins');
         if (el) el.textContent = amount + 'g';
     }
-
-    // --- HUD Clock & Weather ---
-    // 1 real minute = 1 game hour → 24 real minutes = 1 game day
-    function updateHudClock() {
-        const timeEl = document.getElementById('hud-time');
-        if (!timeEl) return;
-
-        // Map real time to game time (1 real min = 1 game hour)
-        const now = Date.now();
-        const gameMinutes = Math.floor(now / 60000); // total real minutes
-        const gameHour = gameMinutes % 24;
-
-        let period, icon;
-        if (gameHour >= 6 && gameHour < 12) {
-            period = 'morning'; icon = '🌅';
-        } else if (gameHour >= 12 && gameHour < 18) {
-            period = 'day'; icon = '☀';
-        } else if (gameHour >= 18 && gameHour < 21) {
-            period = 'evening'; icon = '🌇';
-        } else {
-            period = 'night'; icon = '🌙';
-        }
-
-        const hourStr = String(gameHour).padStart(2, '0') + ':00';
-        timeEl.textContent = `${icon} ${hourStr}`;
-    }
-
-    // Update clock immediately and every 30 seconds
-    updateHudClock();
-    setInterval(updateHudClock, 30000);
 
     // --- Panel Toggle ---
     document.querySelectorAll('[data-panel]').forEach(btn => {
